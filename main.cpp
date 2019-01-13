@@ -1,4 +1,5 @@
 #include "tgaimage.h"
+#include "model.h"
 #include <cstdlib>
 #include <iostream>
 #include <vector>
@@ -58,26 +59,58 @@ std::vector<std::string> readFile(std::string file){
     return line;
 }
 
-void drawPoints(std::vector<std::string> tab, TGAImage &image, TGAColor color){
+void draw(model m, TGAImage &image, TGAColor color){
+    /* std::vector<std::string> tab
     for(int i = 0; i<tab.size(); i+=4){
+        std::cout << tab[i] << std::endl;
         if(tab[i] == "v"){
             image.set(std::stof(tab[i+1])*(image.get_height()/2)+(image.get_height()/2) ,std::stof(tab[i+2])*(image.get_width()/2)+(image.get_width()/2), color);
+        }else if(tab[i] == "f"){
+            std::string s;
+            int tabSommet[3];
+            for(int j = 1; j < 4; j++){
+                s = tab[i+j];
+                std::string delimiter = "/";
+                std::string token = s.substr(0, s.find(delimiter));
+                tabSommet[j-1] = std::stoi(token);
+            }
+            std::cout << std::stoi(tab[tabSommet[0]*3+1]) << std::endl;
+            std::cout << tabSommet[0] << std::endl;
+            line(std::stoi(tab[tabSommet[0]*3+1]), std::stoi(tab[tabSommet[0]*3+2]), std::stoi(tab[tabSommet[1]*3+1]), std::stoi(tab[tabSommet[1]*3+2]), image, color);
         }
+    }
+     */
+    std::cout << "nverts : "+m.nverts() << std::endl;
+    for(int i = 1; i <= m.nverts(); i++){
+        //std::cout << "ok"+i << std::endl;
+        std::vector<float> vertice = m.vert(i);
+        image.set(vertice[0]*(image.get_width()/2)+(image.get_width()/2), vertice[1]*(image.get_height()/2)+(image.get_height()/2), color);
+    }
+    for(int j = 1; j <= m.nfaces(); j++){
+        std::vector<int> face = m.face(j);
+        int xA = m.vert(face[0])[0]*(image.get_width()/2)+(image.get_width()/2);
+        int yA = m.vert(face[0])[1]*(image.get_height()/2)+(image.get_height()/2);
+        int xB = m.vert(face[1])[0]*(image.get_width()/2)+(image.get_width()/2);
+        int yB = m.vert(face[1])[1]*(image.get_height()/2)+(image.get_height()/2);
+        int xC = m.vert(face[2])[0]*(image.get_width()/2)+(image.get_width()/2);
+        int yC = m.vert(face[2])[1]*(image.get_height()/2)+(image.get_height()/2);
+        line(xA,yA,xB,yB,image,color);
+        line(xB,yB,xC,yC,image,color);
+        line(xC,yC,xA,yA,image,color);
     }
 }
 
+
 int main(int argc, char** argv) {
+    //std::vector<std::string> tab = readFile("../african_head.obj");
     /*
-    line(13, 20, 80, 40, image, white);
-    line(80,40,13,20,image, red);
-    line(20,13,40,80,image,white);
-    */
-    std::vector<std::string> tab = readFile("../african_head.obj");
     for(int i =1; i<tab.size(); i++){
         std::cout << tab[i] << std::endl;
     }
+    */
+    model m("../african_head.obj");
     TGAImage image(500,500, TGAImage::RGB);
-    drawPoints(tab,image, white);
+    draw(m,image, white);
     image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
     image.write_tga_file("../output.tga");
     return 0;

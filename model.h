@@ -7,20 +7,21 @@
 
 
 #include <vector>
+#include <fstream>
 
 class model {
-/*
+
 private:
     std::vector<float> verts_;
     std::vector<int> faces_;
 public:
-    //Model(std::string filename);
-    ~Model();
+    model(std::string filename);
+    ~model();
     int nverts();
     int nfaces();
     std::vector<float> vert(int i);
     std::vector<int> face(int idx);
-*/
+
 };
 
 
