@@ -11,7 +11,9 @@
 const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red   = TGAColor(255, 0,   0,   255);
 
-void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) {
+std::vector<std::vector<int>> line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) {
+    std::vector<int> tabX, tabY;
+    std::vector<std::vector<int>> res;
     bool steep = false;
     if (std::abs(x0-x1)<std::abs(y0-y1)) {
         std::swap(x0, y0);
@@ -30,15 +32,23 @@ void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) {
     for (int x=x0; x<=x1; x++) {
         if (steep) {
             image.set(y, x, color);
+            tabX.push_back(y);
+            tabY.push_back(x);
         } else {
             image.set(x, y, color);
+            tabX.push_back(x);
+            tabY.push_back(y);
         }
         error2 += derror2;
         if (error2 > dx) {
             y += (y1>y0?1:-1);
             error2 -= dx*2;
         }
+
     }
+    res.push_back(tabX);
+    res.push_back(tabY);
+    return res;
 }
 
 std::vector<std::string> readFile(std::string file){
@@ -60,26 +70,6 @@ std::vector<std::string> readFile(std::string file){
 }
 
 void draw(model m, TGAImage &image, TGAColor color){
-    /* std::vector<std::string> tab
-    for(int i = 0; i<tab.size(); i+=4){
-        std::cout << tab[i] << std::endl;
-        if(tab[i] == "v"){
-            image.set(std::stof(tab[i+1])*(image.get_height()/2)+(image.get_height()/2) ,std::stof(tab[i+2])*(image.get_width()/2)+(image.get_width()/2), color);
-        }else if(tab[i] == "f"){
-            std::string s;
-            int tabSommet[3];
-            for(int j = 1; j < 4; j++){
-                s = tab[i+j];
-                std::string delimiter = "/";
-                std::string token = s.substr(0, s.find(delimiter));
-                tabSommet[j-1] = std::stoi(token);
-            }
-            std::cout << std::stoi(tab[tabSommet[0]*3+1]) << std::endl;
-            std::cout << tabSommet[0] << std::endl;
-            line(std::stoi(tab[tabSommet[0]*3+1]), std::stoi(tab[tabSommet[0]*3+2]), std::stoi(tab[tabSommet[1]*3+1]), std::stoi(tab[tabSommet[1]*3+2]), image, color);
-        }
-    }
-     */
     std::cout << "nverts : "+m.nverts() << std::endl;
     for(int i = 1; i <= m.nverts(); i++){
         //std::cout << "ok"+i << std::endl;
@@ -100,6 +90,18 @@ void draw(model m, TGAImage &image, TGAColor color){
     }
 }
 
+void fillTriangle(int x1, int y1, int x2, int y2, int x3, int y3, TGAImage &image, TGAColor color){
+    std::vector<std::vector<int>> res1, res2, res3;
+    res1 = line(x1,y1,x2,y2, image, color);
+    res2 = line(x2,y2,x3,y3, image, color);
+    res3 = line(x3,y3,x1,y1, image, color);
+    for(int i = 0; i < res1[0].size(); i++)
+        line(x3,y3,res1[0][i],res1[1][i],image,color);
+    for(int i = 0; i < res2[0].size(); i++)
+        line(x1,y1,res2[0][i],res2[1][i],image,color);
+    for(int i = 0; i < res3[0].size(); i++)
+        line(x2,y2,res3[0][i],res3[1][i],image,color);
+}
 
 int main(int argc, char** argv) {
     //std::vector<std::string> tab = readFile("../african_head.obj");
@@ -111,6 +113,7 @@ int main(int argc, char** argv) {
     model m("../african_head.obj");
     TGAImage image(500,500, TGAImage::RGB);
     draw(m,image, white);
+    //fillTriangle(10,10,400,100,200,400,image,red);
     image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
     image.write_tga_file("../output.tga");
     return 0;
