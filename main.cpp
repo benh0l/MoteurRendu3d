@@ -11,6 +11,9 @@
 const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red   = TGAColor(255, 0,   0,   255);
 const TGAColor green   = TGAColor(0, 255,   0,   255);
+const int WIDTH = 1600;
+const int HEIGHT = 1600;
+const float light[3] = {0,0,50};
 
 std::vector<std::vector<int>> line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) {
     std::vector<int> tabX, tabY;
@@ -127,7 +130,9 @@ void drawVertice(model m, TGAImage &image, TGAColor color){
 void drawTriangle(model m, TGAImage &image, TGAColor color){
     for(int j = 1; j <= m.nfaces(); j++){
         //std::cout << j << "/" << m.nfaces() << std::endl;
+        //WORLD COORDINATES
         std::vector<int> face = m.face(j);
+        //SCREEN COORDINATES
         int xA = m.vert(face[0])[0]*(image.get_width()/2)+(image.get_width()/2);
         int yA = m.vert(face[0])[1]*(image.get_height()/2)+(image.get_height()/2);
         int xB = m.vert(face[1])[0]*(image.get_width()/2)+(image.get_width()/2);
@@ -137,7 +142,21 @@ void drawTriangle(model m, TGAImage &image, TGAColor color){
         //line(xA,yA,xB,yB,image,color);
         //line(xB,yB,xC,yC,image,color);
         //line(xC,yC,xA,yA,image,color);
-        fillTriangle(xA,yA,xB,yB,xC,yC,image,TGAColor(rand()%255, rand()%255, rand()%255, 255));
+        //Take 2 vector from triangle :
+        float vector1[3] = {m.vert(face[1])[0] - m.vert(face[0])[0],m.vert(face[1])[1] - m.vert(face[0])[1],m.vert(face[1])[2] - m.vert(face[0])[3]};
+        float vector2[3] = {m.vert(face[2])[0] - m.vert(face[1])[0],m.vert(face[2])[1] - m.vert(face[1])[1],m.vert(face[2])[2] - m.vert(face[1])[3]};
+        float normal_surface[3];
+        //Do cross-product :
+        normal_surface[0] = ( vector1[1]*vector2[2] ) - ( vector1[2]*vector2[1] );
+        normal_surface[1] = ( vector1[2]*vector2[0] ) - ( vector1[0]*vector2[2] );
+        normal_surface[2] = ( vector1[0]*vector2[1] ) - ( vector1[1]*vector2[0] );
+        //Calculate intensity :
+        float intensity = normal_surface[0]*light[0] + normal_surface[1]*light[1] + normal_surface[2]*light[2];
+        //std::cout << "n z : " << normal_surface[2] << " intensite : " << intensity << std::endl;
+
+        //Draw :
+        if(intensity > 0)
+            fillTriangle(xA,yA,xB,yB,xC,yC,image,TGAColor(intensity*255, intensity*255, intensity*255, 255));
 
     }
 }
@@ -154,9 +173,9 @@ int main(int argc, char** argv) {
         std::cout << tab[i] << std::endl;
     }
     */
-    int light[3] = {0,0,-1};
+    //int light[3] = {0,0,-1};
     model m("../african_head.obj");
-    TGAImage image(1600,1600, TGAImage::RGB);
+    TGAImage image(HEIGHT,WIDTH, TGAImage::RGB);
     drawTriangle(m,image, white);
     //fillTriangleTest(10,10,400,100,200,400,image,white);
     image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
