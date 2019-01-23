@@ -73,6 +73,33 @@ std::vector<std::string> readFile(std::string file){
     return line;
 }
 
+std::vector<float> barycentre(std::vector<std::vector<int>> vectors, float p[]) {
+    std::vector<std::vector<float>> s;
+    for (int i = 0; i < 2;i++) {
+        std::vector<float> ss;
+        ss.push_back(vectors[2][i] - vectors[0][i]);
+        ss.push_back(vectors[1][i] - vectors[0][i]);
+        ss.push_back(vectors[0][i] - p[i]);
+        s.push_back(ss);
+    }
+    float u[3]; //cross(s[0], s[1]);
+    u[0] = s[0][1] * s[1][2] - s[0][2] * s[1][1];
+    u[1] = s[0][2] * s[1][0] - s[0][0] * s[1][2];
+    u[2] = s[0][0] * s[1][1] - s[0][1] * s[1][0];
+
+    if (std::abs(u[2])>1e-2) { // dont forget that u[2] is integer. If it is zero then triangle ABC is degenerate
+        std::vector<float> barycentre;
+        barycentre.push_back(1.f - (u[0] + u[1]) / u[2]);
+        barycentre.push_back(u[1] / u[2]);
+        barycentre.push_back(u[0] / u[2]);
+        return barycentre;
+    }
+    std::vector<float> barycentre;
+    barycentre.push_back(-1);
+    barycentre.push_back(1);
+    barycentre.push_back(1);
+    return barycentre;
+}
 
 void fillTriangle(int x1, int y1, int x2, int y2, int x3, int y3, TGAImage &image, TGAColor color){
         if(y1 > y2) {
@@ -118,6 +145,47 @@ void fillTriangle(int x1, int y1, int x2, int y2, int x3, int y3, TGAImage &imag
         }
 }
 
+void fillTriangle2(int x1, int y1, int z1, int x2, int y2, int z2, int x3, int y3, int z3, float zbuffer[], TGAImage &image, TGAColor color){
+    std::vector<int> vec1,vec2,vec3;
+    vec1.push_back(x1), vec1.push_back(y1); vec1.push_back(z1);
+    vec2.push_back(x2), vec2.push_back(y2); vec2.push_back(z2);
+    vec3.push_back(x3), vec3.push_back(y3); vec3.push_back(z3);
+
+    std::vector<std::vector<int>> vectors;
+    vectors.push_back(vec1);vectors.push_back(vec2);vectors.push_back(vec3);
+
+    float boxmin[2];
+    boxmin[0] = std::numeric_limits<float>::max();boxmin[1] = std::numeric_limits<float>::max();
+    float boxmax[2];
+    boxmax[0] = -std::numeric_limits<float>::max();boxmax[1] = -std::numeric_limits<float>::max();
+
+    int tailleImg[2]; tailleImg[0] = WIDTH-1; tailleImg[1] = HEIGHT-1;
+
+    for(int i=0; i<3; i++){
+        for(int j=0; j<2; j++){
+            boxmin[j] = std::max(0.f, std::min(boxmin[j],(float)vectors[i][j]));
+            boxmax[j] = std::min((float)tailleImg[j], std::max(boxmax[j],(float)vectors[i][j]));
+        }
+    }
+    float p[3];
+    for(p[0] = boxmin[0]; p[0] <= boxmax[0]; p[0]++){
+        for(p[1] = boxmin[1]; p[1] <= boxmax[1]; p[1]++){
+            std::vector<float> bary = barycentre(vectors, p);
+            if(bary[0] < 0 || bary[1] < 0 || bary[2] < 0){
+                continue;
+            }
+            p[2] = 0;
+            for(int i=0;i<3;i++){
+                p[2] += vectors[i][2]*bary[i];
+            }
+            if(zbuffer[int(p[0]+p[1]*WIDTH)] < p[2]){
+                zbuffer[int(p[0]+p[1]*WIDTH)] = p[2];
+                image.set(p[0], p[1], color);
+            }
+        }
+    }
+}
+
 void drawVertice(model m, TGAImage &image, TGAColor color){
     std::cout << "nverts : " << m.nverts() << std::endl;
     for(int i = 1; i <= m.nverts(); i++){
@@ -127,21 +195,23 @@ void drawVertice(model m, TGAImage &image, TGAColor color){
     }
 }
 
-void drawTriangle(model m, TGAImage &image, TGAColor color){
+void drawTriangle(model m, TGAImage &image, TGAColor color, float zbuffer[]){
     for(int j = 1; j <= m.nfaces(); j++){
         //std::cout << j << "/" << m.nfaces() << std::endl;
         //WORLD COORDINATES
         std::vector<int> face = m.face(j);
+
         //SCREEN COORDINATES
         int xA = m.vert(face[0])[0]*(image.get_width()/2)+(image.get_width()/2);
         int yA = m.vert(face[0])[1]*(image.get_height()/2)+(image.get_height()/2);
+        int zA = m.vert(face[0])[2]*(image.get_height()/2)+(image.get_height()/2);
         int xB = m.vert(face[1])[0]*(image.get_width()/2)+(image.get_width()/2);
         int yB = m.vert(face[1])[1]*(image.get_height()/2)+(image.get_height()/2);
+        int zB = m.vert(face[1])[2]*(image.get_height()/2)+(image.get_height()/2);
         int xC = m.vert(face[2])[0]*(image.get_width()/2)+(image.get_width()/2);
         int yC = m.vert(face[2])[1]*(image.get_height()/2)+(image.get_height()/2);
-        //line(xA,yA,xB,yB,image,color);
-        //line(xB,yB,xC,yC,image,color);
-        //line(xC,yC,xA,yA,image,color);
+        int zC = m.vert(face[2])[2]*(image.get_height()/2)+(image.get_height()/2);
+
         //Take 2 vector from triangle :
         float vector1[3] = {m.vert(face[1])[0] - m.vert(face[0])[0],m.vert(face[1])[1] - m.vert(face[0])[1],m.vert(face[1])[2] - m.vert(face[0])[2]};
         float vector2[3] = {m.vert(face[2])[0] - m.vert(face[1])[0],m.vert(face[2])[1] - m.vert(face[1])[1],m.vert(face[2])[2] - m.vert(face[1])[2]};
@@ -166,15 +236,18 @@ void drawTriangle(model m, TGAImage &image, TGAColor color){
 
         //Draw :
         if(intensity > 0)
-            fillTriangle(xA,yA,xB,yB,xC,yC,image,TGAColor(intensity*255, intensity*255, intensity*255, 255));
+            fillTriangle2(xA,yA,zA,xB,yB,zB,xC,yC,zC,zbuffer,image,TGAColor(intensity*255, intensity*255, intensity*255, 255));
 
     }
 }
 
+/*
 void draw(model m, TGAImage &image, TGAColor color){
     drawVertice(m,image,color);
     drawTriangle(m,image,color);
 }
+*/
+
 
 int main(int argc, char** argv) {
     //std::vector<std::string> tab = readFile("../african_head.obj");
@@ -183,12 +256,23 @@ int main(int argc, char** argv) {
         std::cout << tab[i] << std::endl;
     }
     */
-    //int light[3] = {0,0,-1};
     model m("../african_head.obj");
     //model m("../diablo_pose.obj");
+
+    //Ybuffer
+    int ybuffer[WIDTH];
+    for (int i=0; i<WIDTH; i++) {
+        ybuffer[i] = std::numeric_limits<int>::min();
+    }
+
+    //Zbuffer
+    float *zbuffer = new float[WIDTH*HEIGHT];
+    for(int i = 0; i<WIDTH*HEIGHT; i++){
+        zbuffer[i] = -std::numeric_limits<float>::max();
+    }
+
     TGAImage image(HEIGHT,WIDTH, TGAImage::RGB);
-    drawTriangle(m,image, white);
-    //fillTriangleTest(10,10,400,100,200,400,image,white);
+    drawTriangle(m,image, white, zbuffer);
     image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
     image.write_tga_file("../output.tga");
     return 0;
