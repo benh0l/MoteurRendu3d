@@ -1,5 +1,7 @@
 #include "tgaimage.h"
 #include "model.h"
+#include "Point.h"
+#include "Vector.h"
 #include <cstdlib>
 #include <iostream>
 #include <vector>
@@ -7,6 +9,7 @@
 #include <algorithm>
 #include <iterator>
 #include <sstream>
+#include <chrono>
 
 const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red   = TGAColor(255, 0,   0,   255);
@@ -73,32 +76,26 @@ std::vector<std::string> readFile(std::string file){
     return line;
 }
 
-std::vector<float> barycentre(std::vector<std::vector<int>> vectors, float p[]) {
-    std::vector<std::vector<float>> s;
-    for (int i = 0; i < 2;i++) {
-        std::vector<float> ss;
-        ss.push_back(vectors[2][i] - vectors[0][i]);
-        ss.push_back(vectors[1][i] - vectors[0][i]);
-        ss.push_back(vectors[0][i] - p[i]);
-        s.push_back(ss);
-    }
-    float u[3]; //cross(s[0], s[1]);
-    u[0] = s[0][1] * s[1][2] - s[0][2] * s[1][1];
-    u[1] = s[0][2] * s[1][0] - s[0][0] * s[1][2];
-    u[2] = s[0][0] * s[1][1] - s[0][1] * s[1][0];
+Vector barycentrePoint(Point p0, Point p1, Point p2, Point p) {
+    Vector res[2];
+    res[0].x = p2.getX() - p0.getX();
+    res[0].y = p1.getX() - p0.getX();
+    res[0].z = p0.getX() - p.getX();
 
-    if (std::abs(u[2])>1e-2) { // dont forget that u[2] is integer. If it is zero then triangle ABC is degenerate
-        std::vector<float> barycentre;
-        barycentre.push_back(1.f - (u[0] + u[1]) / u[2]);
-        barycentre.push_back(u[1] / u[2]);
-        barycentre.push_back(u[0] / u[2]);
-        return barycentre;
+    res[1].x = p2.getY() - p0.getY();
+    res[1].y = p1.getY() - p0.getY();
+    res[1].z = p0.getY() - p.getY();
+
+    Vector prodVec; //cross(s[0], s[1]);
+    prodVec.x = res[0].getY()*res[1].getZ() - res[0].getZ()*res[1].getY();
+    prodVec.y = res[0].getZ()*res[1].getX() - res[0].getX()*res[1].getZ();
+    prodVec.z = res[0].getX()*res[1].getY() - res[0].getY()*res[1].getX();
+
+    Vector bary(-1,-1,-1);
+    if (std::abs(prodVec.getZ()) > 1e-2) { // dont forget that u[2] is integer. If it is zero then triangle ABC is degenerate
+        bary = Vector(1.f - (prodVec.x + prodVec.y) / prodVec.z, prodVec.y / prodVec.z, prodVec.x / prodVec.z);
     }
-    std::vector<float> barycentre;
-    barycentre.push_back(-1);
-    barycentre.push_back(1);
-    barycentre.push_back(1);
-    return barycentre;
+    return bary;
 }
 
 void fillTriangle(int x1, int y1, int x2, int y2, int x3, int y3, TGAImage &image, TGAColor color){
@@ -145,42 +142,47 @@ void fillTriangle(int x1, int y1, int x2, int y2, int x3, int y3, TGAImage &imag
         }
 }
 
-void fillTriangle2(int x1, int y1, int z1, int x2, int y2, int z2, int x3, int y3, int z3, float zbuffer[], TGAImage &image, TGAColor color){
-    std::vector<int> vec1,vec2,vec3;
-    vec1.push_back(x1), vec1.push_back(y1); vec1.push_back(z1);
-    vec2.push_back(x2), vec2.push_back(y2); vec2.push_back(z2);
-    vec3.push_back(x3), vec3.push_back(y3); vec3.push_back(z3);
+void fillTrianglePoint(Point p0, Point p1, Point p2, float zbuffer[], TGAImage &image, TGAColor color){
+    /*
+    Vector vec1(p0.getX(), p0.getY(), p0.getZ());
+    Vector vec2(p1.getX(), p1.getY(), p1.getZ());
+    Vector vec3(p2.getX(), p2.getY(), p2.getZ());
+    */
 
-    std::vector<std::vector<int>> vectors;
-    vectors.push_back(vec1);vectors.push_back(vec2);vectors.push_back(vec3);
+    std::vector<Point> vectors;
+    vectors.push_back(p0);vectors.push_back(p1);vectors.push_back(p2);
 
     float boxmin[2];
-    boxmin[0] = std::numeric_limits<float>::max();boxmin[1] = std::numeric_limits<float>::max();
+    boxmin[0] = std::numeric_limits<float>::max();
+    boxmin[1] = std::numeric_limits<float>::max();
     float boxmax[2];
-    boxmax[0] = -std::numeric_limits<float>::max();boxmax[1] = -std::numeric_limits<float>::max();
+    boxmax[0] = -std::numeric_limits<float>::max();
+    boxmax[1] = -std::numeric_limits<float>::max();
 
-    int tailleImg[2]; tailleImg[0] = WIDTH-1; tailleImg[1] = HEIGHT-1;
+    float tailleImg[2]; tailleImg[0] = WIDTH-1; tailleImg[1] = HEIGHT-1;
 
     for(int i=0; i<3; i++){
-        for(int j=0; j<2; j++){
-            boxmin[j] = std::max(0.f, std::min(boxmin[j],(float)vectors[i][j]));
-            boxmax[j] = std::min((float)tailleImg[j], std::max(boxmax[j],(float)vectors[i][j]));
-        }
+            boxmin[0] = std::max(0.f, std::min( boxmin[0],(float)vectors[i].getX() ) );
+            boxmax[0] = std::min(tailleImg[0], std::max( boxmax[0], (float)vectors[i].getX() ) );
+
+            boxmin[1] = std::max(0.f, std::min( boxmin[1],(float)vectors[i].getY() ) );
+            boxmax[1] = std::min(tailleImg[1], std::max( boxmax[1], (float)vectors[i].getY() ) );
     }
-    float p[3];
-    for(p[0] = boxmin[0]; p[0] <= boxmax[0]; p[0]++){
-        for(p[1] = boxmin[1]; p[1] <= boxmax[1]; p[1]++){
-            std::vector<float> bary = barycentre(vectors, p);
-            if(bary[0] < 0 || bary[1] < 0 || bary[2] < 0){
+    Point p;
+    for(p.x = boxmin[0]; p.x <= boxmax[0]; p.x++){
+        for(p.y = boxmin[1]; p.y <= boxmax[1]; p.y++){
+            Vector bary = barycentrePoint(vectors[0], vectors[1], vectors[2], p);
+            if(bary.getX() < 0 || bary.getY() < 0 || bary.getZ() < 0){
                 continue;
             }
-            p[2] = 0;
-            for(int i=0;i<3;i++){
-                p[2] += vectors[i][2]*bary[i];
-            }
-            if(zbuffer[int(p[0]+p[1]*WIDTH)] < p[2]){
-                zbuffer[int(p[0]+p[1]*WIDTH)] = p[2];
-                image.set(p[0], p[1], color);
+            p.z = 0;
+            p.z = p.z + vectors[0].getZ() * bary.getX();
+            p.z = p.z + vectors[1].getZ() * bary.getY();
+            p.z = p.z + vectors[2].getZ() * bary.getZ();
+
+            if(zbuffer[(p.getX()+p.getY()*WIDTH)] < p.getZ()){
+                zbuffer[(p.getX()+p.getY()*WIDTH)] = p.getZ();
+                image.set(p.x, p.y, color);
             }
         }
     }
@@ -202,26 +204,21 @@ void drawTriangle(model m, TGAImage &image, TGAColor color, float zbuffer[]){
         std::vector<int> face = m.face(j);
 
         //SCREEN COORDINATES
-        int xA = m.vert(face[0])[0]*(image.get_width()/2)+(image.get_width()/2);
-        int yA = m.vert(face[0])[1]*(image.get_height()/2)+(image.get_height()/2);
-        int zA = m.vert(face[0])[2]*(image.get_height()/2)+(image.get_height()/2);
-        int xB = m.vert(face[1])[0]*(image.get_width()/2)+(image.get_width()/2);
-        int yB = m.vert(face[1])[1]*(image.get_height()/2)+(image.get_height()/2);
-        int zB = m.vert(face[1])[2]*(image.get_height()/2)+(image.get_height()/2);
-        int xC = m.vert(face[2])[0]*(image.get_width()/2)+(image.get_width()/2);
-        int yC = m.vert(face[2])[1]*(image.get_height()/2)+(image.get_height()/2);
-        int zC = m.vert(face[2])[2]*(image.get_height()/2)+(image.get_height()/2);
+
+        Point p0((int)(m.vert(face[0])[0]*(image.get_width()/2)+(image.get_width()/2)), (int)(m.vert(face[0])[1]*(image.get_height()/2)+(image.get_height()/2)),(int)(m.vert(face[0])[2]*(image.get_height()/2)+(image.get_height()/2)));
+        Point p1((int)(m.vert(face[1])[0]*(image.get_width()/2)+(image.get_width()/2)), (int)(m.vert(face[1])[1]*(image.get_height()/2)+(image.get_height()/2)),(int)(m.vert(face[1])[2]*(image.get_height()/2)+(image.get_height()/2)));
+        Point p2((int)(m.vert(face[2])[0]*(image.get_width()/2)+(image.get_width()/2)), (int)(m.vert(face[2])[1]*(image.get_height()/2)+(image.get_height()/2)),(int)(m.vert(face[2])[2]*(image.get_height()/2)+(image.get_height()/2)));
 
         //Take 2 vector from triangle :
-        float vector1[3] = {m.vert(face[1])[0] - m.vert(face[0])[0],m.vert(face[1])[1] - m.vert(face[0])[1],m.vert(face[1])[2] - m.vert(face[0])[2]};
-        float vector2[3] = {m.vert(face[2])[0] - m.vert(face[1])[0],m.vert(face[2])[1] - m.vert(face[1])[1],m.vert(face[2])[2] - m.vert(face[1])[2]};
+        Vector vector1(p1.getX() - p0.getX(), p1.getY() - p0.getY(), p1.getZ() - p0.getZ());
+        Vector vector2(p2.getX() - p1.getX(), p2.getY() - p1.getY(), p2.getZ() - p1.getZ());
 
         //Do cross-product :
         float normal_surface[3];
 
-        normal_surface[0] = ( vector1[1]*vector2[2] ) - ( vector1[2]*vector2[1] );
-        normal_surface[1] = ( vector1[2]*vector2[0] ) - ( vector1[0]*vector2[2] );
-        normal_surface[2] = ( vector1[0]*vector2[1] ) - ( vector1[1]*vector2[0] );
+        normal_surface[0] = ( vector1.getY()*vector2.getZ() ) - ( vector1.getZ()*vector2.getY() );
+        normal_surface[1] = ( vector1.getZ()*vector2.getX() ) - ( vector1.getX()*vector2.getZ() );
+        normal_surface[2] = ( vector1.getX()*vector2.getY() ) - ( vector1.getY()*vector2.getX() );
 
         //Calculate norme :
         float norme = sqrtf(normal_surface[0]*normal_surface[0] + normal_surface[1]*normal_surface[1] + normal_surface[2]*normal_surface[2]);
@@ -235,9 +232,9 @@ void drawTriangle(model m, TGAImage &image, TGAColor color, float zbuffer[]){
         //std::cout << "n z : " << normal_surface[2] << " intensite : " << intensity << std::endl;
 
         //Draw :
-        if(intensity > 0)
-            fillTriangle2(xA,yA,zA,xB,yB,zB,xC,yC,zC,zbuffer,image,TGAColor(intensity*255, intensity*255, intensity*255, 255));
-
+        if(intensity > 0) {
+            fillTrianglePoint(p0, p1, p2, zbuffer, image, TGAColor(intensity * 255, intensity * 255, intensity * 255, 255));
+        }
     }
 }
 
@@ -257,22 +254,24 @@ int main(int argc, char** argv) {
     }
     */
     model m("../african_head.obj");
+    auto start = std::chrono::system_clock::now();
+    std::time_t startt = std::chrono::system_clock::to_time_t(start);
+    std::cout << std::ctime(&startt) << std::endl;
     //model m("../diablo_pose.obj");
-
-    //Ybuffer
-    int ybuffer[WIDTH];
-    for (int i=0; i<WIDTH; i++) {
-        ybuffer[i] = std::numeric_limits<int>::min();
-    }
 
     //Zbuffer
     float *zbuffer = new float[WIDTH*HEIGHT];
-    for(int i = 0; i<WIDTH*HEIGHT; i++){
+    for(int i = 0; i < WIDTH*HEIGHT; i++){
         zbuffer[i] = -std::numeric_limits<float>::max();
     }
 
     TGAImage image(HEIGHT,WIDTH, TGAImage::RGB);
     drawTriangle(m,image, white, zbuffer);
+
+    auto step = std::chrono::system_clock::now();
+    std::time_t step2 = std::chrono::system_clock::to_time_t(step);
+    std::cout << "FIN : " << std::ctime(&step2) << std::endl;
+
     image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
     image.write_tga_file("../output.tga");
     return 0;
