@@ -96,17 +96,18 @@ void model::load_texture(std::string filename, TGAImage &img) {
     img.flip_vertically();
 }
 
-std::vector<Point> model::uv(int iface) {
+std::vector<Vector> model::uv(int iface) {
     //std::cout << "ok uv()" << std::endl;
     Point idx = nVertex_[iface-1];
-    std::vector<Point> res;
-    res.push_back(Point(textures_[idx.x].x*imgText.get_width(), textures_[idx.x].y*imgText.get_height(),0));
-    res.push_back(Point(textures_[idx.y].x*imgText.get_width(), textures_[idx.y].y*imgText.get_height(),0));
-    res.push_back(Point(textures_[idx.z].x*imgText.get_width(), textures_[idx.z].y*imgText.get_height(),0));
+    std::vector<Vector> res;
+    res.push_back(Vector(textures_[idx.x-1].x, textures_[idx.x-1].y,0.f));
+    res.push_back(Vector(textures_[idx.y-1].x, textures_[idx.y-1].y,0.f));
+    res.push_back(Vector(textures_[idx.z-1].x, textures_[idx.z-1].y,0.f));
+    //std::cout << "ok uv() fin" << std::endl;
     return res;
 }
 
-TGAColor model::diffuse(Point uv) {
+TGAColor model::diffuse(Vector uv) {
     //std::cout << "ok diffuse()" << std::endl;
     return imgText.get(uv.x, uv.y);
 }

@@ -16,6 +16,7 @@ const TGAColor red   = TGAColor(255, 0,   0,   255);
 const TGAColor green   = TGAColor(0, 255,   0,   255);
 const int WIDTH = 1600;
 const int HEIGHT = 1600;
+int width_TEXTURE, height_TEXTURE;
 const float light[3] = {0.,0.,1.};
 
 std::vector<std::vector<int>> line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) {
@@ -142,7 +143,7 @@ void fillTriangle(int x1, int y1, int x2, int y2, int x3, int y3, TGAImage &imag
         }
 }
 
-void fillTrianglePoint(Point p0, Point p1, Point p2, float zbuffer[], TGAImage &image, TGAColor color){
+void fillTrianglePoint(Point p0, Point p1, Point p2, Vector uv1, Vector uv2, Vector uv3, float zbuffer[], TGAImage &image, model m, float intensity){
     /*
     Vector vec1(p0.getX(), p0.getY(), p0.getZ());
     Vector vec2(p1.getX(), p1.getY(), p1.getZ());
@@ -158,6 +159,7 @@ void fillTrianglePoint(Point p0, Point p1, Point p2, float zbuffer[], TGAImage &
     float boxmax[2];
     boxmax[0] = -std::numeric_limits<float>::max();
     boxmax[1] = -std::numeric_limits<float>::max();
+    Vector pointTexture;
 
     float tailleImg[2]; tailleImg[0] = WIDTH-1; tailleImg[1] = HEIGHT-1;
 
@@ -175,6 +177,7 @@ void fillTrianglePoint(Point p0, Point p1, Point p2, float zbuffer[], TGAImage &
             if(bary.getX() < 0 || bary.getY() < 0 || bary.getZ() < 0){
                 continue;
             }
+
             p.z = 0;
             p.z = p.z + vectors[0].getZ() * bary.getX();
             p.z = p.z + vectors[1].getZ() * bary.getY();
@@ -182,6 +185,12 @@ void fillTrianglePoint(Point p0, Point p1, Point p2, float zbuffer[], TGAImage &
 
             if(zbuffer[(p.getX()+p.getY()*WIDTH)] < p.getZ()){
                 zbuffer[(p.getX()+p.getY()*WIDTH)] = p.getZ();
+                pointTexture.x = uv1.x * bary.x + uv2.x * bary.y + uv3.x * bary.z;
+                pointTexture.y = uv1.y * bary.x + uv2.y * bary.y + uv3.y * bary.z;
+                TGAColor color = m.imgText.get(pointTexture.x*width_TEXTURE, pointTexture.y*height_TEXTURE);
+                for(int i = 0;i<3;i++){
+                    color.bgra[i] = color.bgra[i]*intensity;
+                }
                 image.set(p.x, p.y, color);
             }
         }
@@ -204,7 +213,6 @@ void drawTriangle(model m, TGAImage &image, TGAColor color, float zbuffer[]){
         std::vector<int> face = m.face(j);
 
         //SCREEN COORDINATES
-
         Point p0((int)(m.vert(face[0])[0]*(image.get_width()/2)+(image.get_width()/2)), (int)(m.vert(face[0])[1]*(image.get_height()/2)+(image.get_height()/2)),(int)(m.vert(face[0])[2]*(image.get_height()/2)+(image.get_height()/2)));
         Point p1((int)(m.vert(face[1])[0]*(image.get_width()/2)+(image.get_width()/2)), (int)(m.vert(face[1])[1]*(image.get_height()/2)+(image.get_height()/2)),(int)(m.vert(face[1])[2]*(image.get_height()/2)+(image.get_height()/2)));
         Point p2((int)(m.vert(face[2])[0]*(image.get_width()/2)+(image.get_width()/2)), (int)(m.vert(face[2])[1]*(image.get_height()/2)+(image.get_height()/2)),(int)(m.vert(face[2])[2]*(image.get_height()/2)+(image.get_height()/2)));
@@ -233,7 +241,8 @@ void drawTriangle(model m, TGAImage &image, TGAColor color, float zbuffer[]){
 
         //Draw :
         if(intensity > 0) {
-            fillTrianglePoint(p0, p1, p2, zbuffer, image, TGAColor(intensity * 255, intensity * 255, intensity * 255, 255));
+            std::vector<Vector> uv = m.uv(j);
+            fillTrianglePoint(p0, p1, p2, uv[0], uv[1], uv[2], zbuffer, image, m, intensity);
         }
     }
 }
@@ -253,11 +262,14 @@ int main(int argc, char** argv) {
         std::cout << tab[i] << std::endl;
     }
     */
-    model m("../african_head.obj");
+    //model m("../african_head.obj");
+    model m("../diablo_pose.obj");
+    width_TEXTURE = m.imgText.get_width();
+    height_TEXTURE = m.imgText.get_height();
+
     auto start = std::chrono::system_clock::now();
     std::time_t startt = std::chrono::system_clock::to_time_t(start);
     std::cout << std::ctime(&startt) << std::endl;
-    //model m("../diablo_pose.obj");
 
     //Zbuffer
     float *zbuffer = new float[WIDTH*HEIGHT];
