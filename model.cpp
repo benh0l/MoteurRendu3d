@@ -3,6 +3,7 @@
 //
 
 #include "model.h"
+#include "tgaimage.h"
 #include <vector>
 #include <fstream>
 #include <sstream>
@@ -31,16 +32,25 @@ model::model(std::string filename){
                      verts_.push_back(stof(results[3]));
                  }else if(results[0] == "f"){
                      //std::cout << "ok f : " << j << std::endl;
+                     int nVertex[3];
                      for(int i = 1; i < 4; i++){
                          std::string s = results[i];
                          std::string delimiter = "/";
                          std::string token = s.substr(0, s.find(delimiter));
+                         s.erase(0, s.find(delimiter) + delimiter.length());
+                         std::string token2 = s.substr(0, s.find(delimiter));
+                         //std::cout << token2 << std::endl;
                          faces_.push_back(std::stoi(token));
+                         nVertex[i-1] = std::stoi(token2);
                      }
+                     nVertex_.push_back(Point(nVertex[0], nVertex[1], nVertex[2]));
+                 }else if(results[0] == "vt"){
+                     Vector v = Vector(std::stof(results[1]),std::stof(results[2]),std::stof(results[3]));
+                     textures_.push_back(v);
                  }
              }
-
          }
+         load_texture(filename,imgText);
      }
 }
 
@@ -54,6 +64,10 @@ int model::nverts() {
 
 int model::nfaces() {
     return faces_.size()/3;
+}
+
+int model::ntext() {
+    return textures_.size();
 }
 
 std::vector<float> model::vert(int i) {
@@ -70,4 +84,29 @@ std::vector<int> model::face(int idx) {
     res.push_back(faces_[((idx-1)*3)+1]);
     res.push_back(faces_[((idx-1)*3)+2]);
     return res;
+}
+
+Vector model::text(int idx) {
+    return textures_[idx];
+}
+
+void model::load_texture(std::string filename, TGAImage &img) {
+    filename = filename.substr(0,filename.find_last_of(".")) + "_diffuse.tga";
+    std::cout << (img.read_tga_file(filename.c_str()) ? "ok" : "fail") << std::endl;
+    img.flip_vertically();
+}
+
+std::vector<Point> model::uv(int iface) {
+    //std::cout << "ok uv()" << std::endl;
+    Point idx = nVertex_[iface-1];
+    std::vector<Point> res;
+    res.push_back(Point(textures_[idx.x].x*imgText.get_width(), textures_[idx.x].y*imgText.get_height(),0));
+    res.push_back(Point(textures_[idx.y].x*imgText.get_width(), textures_[idx.y].y*imgText.get_height(),0));
+    res.push_back(Point(textures_[idx.z].x*imgText.get_width(), textures_[idx.z].y*imgText.get_height(),0));
+    return res;
+}
+
+TGAColor model::diffuse(Point uv) {
+    //std::cout << "ok diffuse()" << std::endl;
+    return imgText.get(uv.x, uv.y);
 }
