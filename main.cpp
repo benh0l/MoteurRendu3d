@@ -259,15 +259,13 @@ void drawTriangle(model m, TGAImage &image, TGAColor color, float zbuffer[]){
         Vector vector1(p1.getX() - p0.getX(), p1.getY() - p0.getY(), p1.getZ() - p0.getZ());
         Vector vector2(p2.getX() - p1.getX(), p2.getY() - p1.getY(), p2.getZ() - p1.getZ());
 
-        //TEST MATRIX
+        //MATRIX depth
         Matrix m0 = vp * projection * point2matrix(v0);
         Matrix m1 = vp * projection * point2matrix(v1);
         Matrix m2 = vp * projection * point2matrix(v2);
-        //std::cout << "ok vp*proj" << std::endl;
         p0 = matrix2point(m0);
         p1 = matrix2point(m1);
         p2 = matrix2point(m2);
-        //std::cout << "ok m2p" << std::endl;
 
         //Do cross-product :
         float normal_surface[3];
@@ -285,7 +283,6 @@ void drawTriangle(model m, TGAImage &image, TGAColor color, float zbuffer[]){
 
         //Calculate intensity (scalaire) :
         float intensity = normal_surface[0]*light[0] + normal_surface[1]*light[1] + normal_surface[2]*light[2];
-        //std::cout << "n z : " << normal_surface[2] << " intensite : " << intensity << std::endl;
 
         //Draw :
         if(intensity > 0) {
@@ -304,8 +301,8 @@ int main(int argc, char** argv) {
         std::cout << tab[i] << std::endl;
     }
     */
-    model m("../african_head.obj");
-    //model m("../diablo_pose.obj");
+    //model m("../african_head.obj");
+    model m("../diablo_pose.obj");
     //model m("../trike.obj");
     width_TEXTURE = m.imgText.get_width();
     height_TEXTURE = m.imgText.get_height();
