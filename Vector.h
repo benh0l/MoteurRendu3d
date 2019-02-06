@@ -6,6 +6,8 @@
 #define MOTEURRENDU3D_VECTOR_H
 
 
+#include "Matrix.h"
+
 struct Vector {
     float x, y, z;
 public :
@@ -14,6 +16,7 @@ public :
     float getX();
     float getY();
     float getZ();
+    //Matrix vector2matrix();
 };
 
 

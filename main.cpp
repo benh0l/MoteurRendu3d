@@ -14,10 +14,12 @@
 const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red   = TGAColor(255, 0,   0,   255);
 const TGAColor green   = TGAColor(0, 255,   0,   255);
-const int WIDTH = 1600;
-const int HEIGHT = 1600;
+const int WIDTH = 800;
+const int HEIGHT = 800;
+const int DEPTH = 255;
 int width_TEXTURE, height_TEXTURE;
 const float light[3] = {0.,0.,1.};
+const Vector camera(0.f,0.f,3.f);
 
 std::vector<std::vector<int>> line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) {
     std::vector<int> tabX, tabY;
@@ -97,6 +99,36 @@ Vector barycentrePoint(Point p0, Point p1, Point p2, Point p) {
         bary = Vector(1.f - (prodVec.x + prodVec.y) / prodVec.z, prodVec.y / prodVec.z, prodVec.x / prodVec.z);
     }
     return bary;
+}
+
+Matrix viewport(int x, int y, int w, int h) {
+    Matrix mat = Matrix::identity(4);
+    mat.m[0][3] = x+w/2.f;
+    mat.m[1][3] = y+h/2.f;
+    mat.m[2][3] = DEPTH/2.f;
+
+    mat.m[0][0] = w/2.f;
+    mat.m[1][1] = h/2.f;
+    mat.m[2][2] = DEPTH/2.f;
+    return mat;
+}
+
+Matrix point2matrix(Vector p) {
+    //std::cout << "rentre dans p2m" << std::endl;
+    Matrix mat(4, 1);
+    mat.m[0][0] = p.x;
+    mat.m[1][0] = p.y;
+    mat.m[2][0] = p.z;
+    mat.m[3][0] = 1.f;
+    return mat;
+}
+
+Point matrix2point(Matrix mat) {
+    return Point((int)(mat.m[0][0]/mat.m[3][0]), (int)(mat.m[1][0]/mat.m[3][0]), (int)(mat.m[2][0]/mat.m[3][0]));
+}
+
+Vector matrix2vector(Matrix mat){
+    return Vector(mat.m[0][0]/mat.m[3][0], mat.m[1][0]/mat.m[3][0], mat.m[2][0]/mat.m[3][0]);
 }
 
 void fillTriangle(int x1, int y1, int x2, int y2, int x3, int y3, TGAImage &image, TGAColor color){
@@ -207,10 +239,16 @@ void drawVertice(model m, TGAImage &image, TGAColor color){
 }
 
 void drawTriangle(model m, TGAImage &image, TGAColor color, float zbuffer[]){
+    Matrix projection = Matrix::identity(4);
+    Matrix vp = viewport(int(WIDTH/8), int(HEIGHT/8), int(WIDTH*3/4), int(HEIGHT*3/4));
+    projection.m[3][2] = -1.f/camera.z;
     for(int j = 1; j <= m.nfaces(); j++){
         //std::cout << j << "/" << m.nfaces() << std::endl;
         //WORLD COORDINATES
         std::vector<int> face = m.face(j);
+        Vector v0(m.vert(face[0])[0],m.vert(face[0])[1],m.vert(face[0])[2]);
+        Vector v1(m.vert(face[1])[0],m.vert(face[1])[1],m.vert(face[1])[2]);
+        Vector v2(m.vert(face[2])[0],m.vert(face[2])[1],m.vert(face[2])[2]);
 
         //SCREEN COORDINATES
         Point p0((int)(m.vert(face[0])[0]*(image.get_width()/2)+(image.get_width()/2)), (int)(m.vert(face[0])[1]*(image.get_height()/2)+(image.get_height()/2)),(int)(m.vert(face[0])[2]*(image.get_height()/2)+(image.get_height()/2)));
@@ -220,6 +258,16 @@ void drawTriangle(model m, TGAImage &image, TGAColor color, float zbuffer[]){
         //Take 2 vector from triangle :
         Vector vector1(p1.getX() - p0.getX(), p1.getY() - p0.getY(), p1.getZ() - p0.getZ());
         Vector vector2(p2.getX() - p1.getX(), p2.getY() - p1.getY(), p2.getZ() - p1.getZ());
+
+        //TEST MATRIX
+        Matrix m0 = vp * projection * point2matrix(v0);
+        Matrix m1 = vp * projection * point2matrix(v1);
+        Matrix m2 = vp * projection * point2matrix(v2);
+        //std::cout << "ok vp*proj" << std::endl;
+        p0 = matrix2point(m0);
+        p1 = matrix2point(m1);
+        p2 = matrix2point(m2);
+        //std::cout << "ok m2p" << std::endl;
 
         //Do cross-product :
         float normal_surface[3];
@@ -247,12 +295,6 @@ void drawTriangle(model m, TGAImage &image, TGAColor color, float zbuffer[]){
     }
 }
 
-/*
-void draw(model m, TGAImage &image, TGAColor color){
-    drawVertice(m,image,color);
-    drawTriangle(m,image,color);
-}
-*/
 
 
 int main(int argc, char** argv) {
@@ -262,8 +304,9 @@ int main(int argc, char** argv) {
         std::cout << tab[i] << std::endl;
     }
     */
-    //model m("../african_head.obj");
-    model m("../diablo_pose.obj");
+    model m("../african_head.obj");
+    //model m("../diablo_pose.obj");
+    //model m("../trike.obj");
     width_TEXTURE = m.imgText.get_width();
     height_TEXTURE = m.imgText.get_height();
 

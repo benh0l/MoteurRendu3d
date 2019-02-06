@@ -6,6 +6,8 @@
 #define MOTEURRENDU3D_POINT_H
 
 
+#include "Matrix.h"
+
 struct Point {
     int x,y,z;
 public :
@@ -14,6 +16,7 @@ public :
     int getX();
     int getY();
     int getZ();
+    //Matrix point2matrix();
 };
 
 
