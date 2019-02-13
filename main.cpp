@@ -18,8 +18,8 @@ const int WIDTH = 800;
 const int HEIGHT = 800;
 const int DEPTH = 255;
 int width_TEXTURE, height_TEXTURE;
-const float light[3] = {0.,0.,1.};
-const Vector camera(2.f,1.f,5.f);
+float light[3] = {0.f,0.f,2.f};
+const Vector camera(1.f,1.f,3.f);
 const Vector center(0,0,0);
 
 std::vector<std::vector<int>> line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) {
@@ -155,50 +155,6 @@ Matrix lookat(Vector eye, Vector center, Vector up) {
     return res;
 }
 
-void fillTriangle(int x1, int y1, int x2, int y2, int x3, int y3, TGAImage &image, TGAColor color){
-        if(y1 > y2) {
-            std::swap(y1,y2);
-            std::swap(x1,x2);
-        }
-        if(y1 > y3){
-            std::swap(y1,y3);
-            std::swap(x1,x3);
-        }
-        if(y2 > y3){
-            std::swap(y2,y3);
-            std::swap(x2,x3);
-        }
-        int height = y3 - y1;
-        if(height != 0) {
-            for (int i = y1; i <= y2; i++) {
-                int segment_height = y2 - y1 + 1;
-                float a = (float) (i - y1) / height;
-                float b = (float) (i - y1) / segment_height;
-                int ax = x1 + (x3 - x1) * a;
-                int bx = x1 + (x2 - x1) * b;
-                if (ax > bx)
-                    std::swap(ax, bx);
-                //image.set(ax,i,red);
-                //image.set(bx,i,green);
-                for (int ii = ax; ii <= bx; ii++) {
-                    image.set(ii, i, color);
-                }
-            }
-            for (int j = y2; j <= y3; j++) {
-                int segment_height = y3 - y2 + 1;
-                float a = (float) (j - y1) / height;
-                float b = (float) (j - y2) / segment_height;
-                int ax = x1 + (x3 - x1) * a;
-                int bx = x2 + (x3 - x2) * b;
-                if (ax > bx)
-                    std::swap(ax, bx);
-                for (int jj = ax; jj <= bx; jj++) {
-                    image.set(jj, j, color);
-                }
-            }
-        }
-}
-
 void fillTrianglePoint(Point p0, Point p1, Point p2, Vector uv1, Vector uv2, Vector uv3, float zbuffer[], TGAImage &image, model m, float intensity, int width_TEXTURE, int height_TEXTURE){
     /*
     Vector vec1(p0.getX(), p0.getY(), p0.getZ());
@@ -320,12 +276,11 @@ void drawTriangle(model m, TGAImage &image, TGAColor color, float zbuffer[], int
 
 
 int main(int argc, char** argv) {
-    //std::vector<std::string> tab = readFile("../african_head.obj");
-    /*
-    for(int i =1; i<tab.size(); i++){
-        std::cout << tab[i] << std::endl;
-    }
-    */
+    Vector lightV(light[0],light[1],light[2]);
+    Vector lightVN = lightV.normalize();
+    light[0] = lightVN.x;
+    light[1] = lightVN.y;
+    light[2] = lightVN.z;
     model m("../african_head.obj");
     //model m("../diablo_pose.obj");
     //model m("../ct_urban.obj");
