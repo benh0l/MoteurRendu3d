@@ -199,7 +199,7 @@ void fillTriangle(int x1, int y1, int x2, int y2, int x3, int y3, TGAImage &imag
         }
 }
 
-void fillTrianglePoint(Point p0, Point p1, Point p2, Vector uv1, Vector uv2, Vector uv3, float zbuffer[], TGAImage &image, model m, float intensity){
+void fillTrianglePoint(Point p0, Point p1, Point p2, Vector uv1, Vector uv2, Vector uv3, float zbuffer[], TGAImage &image, model m, float intensity, int width_TEXTURE, int height_TEXTURE){
     /*
     Vector vec1(p0.getX(), p0.getY(), p0.getZ());
     Vector vec2(p1.getX(), p1.getY(), p1.getZ());
@@ -262,7 +262,7 @@ void drawVertice(model m, TGAImage &image, TGAColor color){
     }
 }
 
-void drawTriangle(model m, TGAImage &image, TGAColor color, float zbuffer[]){
+void drawTriangle(model m, TGAImage &image, TGAColor color, float zbuffer[], int width_TEXTURE, int height_TEXTURE){
     Matrix ModelView  = lookat(camera, center, Vector(0,1,0));
     Matrix projection = Matrix::identity(4);
     Matrix vp = viewport(int(WIDTH/8), int(HEIGHT/8), int(WIDTH*3/4), int(HEIGHT*3/4));
@@ -312,7 +312,7 @@ void drawTriangle(model m, TGAImage &image, TGAColor color, float zbuffer[]){
         //Draw :
         if(intensity > 0) {
             std::vector<Vector> uv = m.uv(j);
-            fillTrianglePoint(p0, p1, p2, uv[0], uv[1], uv[2], zbuffer, image, m, intensity);
+            fillTrianglePoint(p0, p1, p2, uv[0], uv[1], uv[2], zbuffer, image, m, intensity,width_TEXTURE,height_TEXTURE);
         }
     }
 }
@@ -329,8 +329,12 @@ int main(int argc, char** argv) {
     model m("../african_head.obj");
     //model m("../diablo_pose.obj");
     //model m("../ct_urban.obj");
+    model m2("../eyes.obj");
+
     width_TEXTURE = m.imgText.get_width();
     height_TEXTURE = m.imgText.get_height();
+    int width_TEXTURE2 = m2.imgText.get_width();
+    int height_TEXTURE2 = m2.imgText.get_height();
 
 
     //Zbuffer
@@ -340,7 +344,8 @@ int main(int argc, char** argv) {
     }
 
     TGAImage image(HEIGHT,WIDTH, TGAImage::RGB);
-    drawTriangle(m,image, white, zbuffer);
+    drawTriangle(m,image, white, zbuffer,width_TEXTURE,height_TEXTURE);
+    drawTriangle(m2,image,white,zbuffer,width_TEXTURE2,height_TEXTURE2);
 
 
     image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
