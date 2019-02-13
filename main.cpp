@@ -19,7 +19,8 @@ const int HEIGHT = 800;
 const int DEPTH = 255;
 int width_TEXTURE, height_TEXTURE;
 const float light[3] = {0.,0.,1.};
-const Vector camera(0.f,0.f,3.f);
+const Vector camera(2.f,1.f,5.f);
+const Vector center(0,0,0);
 
 std::vector<std::vector<int>> line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) {
     std::vector<int> tabX, tabY;
@@ -131,6 +132,29 @@ Vector matrix2vector(Matrix mat){
     return Vector(mat.m[0][0]/mat.m[3][0], mat.m[1][0]/mat.m[3][0], mat.m[2][0]/mat.m[3][0]);
 }
 
+Matrix lookat(Vector eye, Vector center, Vector up) {
+    Vector z = (eye.vectorMinus(center)).normalize();
+    Vector x = (up.cross(z)).normalize();
+    Vector y = (z.cross(x)).normalize();
+    Matrix res = Matrix::identity(4);
+
+    res.m[0][0] = x.getX();
+    res.m[1][0] = y.getX();
+    res.m[2][0] = z.getX();
+    res.m[0][3] = -center.getX();
+
+    res.m[0][1] = x.getY();
+    res.m[1][1] = y.getY();
+    res.m[2][1] = z.getY();
+    res.m[1][3] = -center.getY();
+
+    res.m[0][2] = x.getZ();
+    res.m[1][2] = y.getZ();
+    res.m[2][2] = z.getZ();
+    res.m[2][3] = -center.getZ();
+    return res;
+}
+
 void fillTriangle(int x1, int y1, int x2, int y2, int x3, int y3, TGAImage &image, TGAColor color){
         if(y1 > y2) {
             std::swap(y1,y2);
@@ -239,6 +263,7 @@ void drawVertice(model m, TGAImage &image, TGAColor color){
 }
 
 void drawTriangle(model m, TGAImage &image, TGAColor color, float zbuffer[]){
+    Matrix ModelView  = lookat(camera, center, Vector(0,1,0));
     Matrix projection = Matrix::identity(4);
     Matrix vp = viewport(int(WIDTH/8), int(HEIGHT/8), int(WIDTH*3/4), int(HEIGHT*3/4));
     projection.m[3][2] = -1.f/camera.z;
@@ -260,9 +285,9 @@ void drawTriangle(model m, TGAImage &image, TGAColor color, float zbuffer[]){
         Vector vector2(p2.getX() - p1.getX(), p2.getY() - p1.getY(), p2.getZ() - p1.getZ());
 
         //MATRIX depth
-        Matrix m0 = vp * projection * point2matrix(v0);
-        Matrix m1 = vp * projection * point2matrix(v1);
-        Matrix m2 = vp * projection * point2matrix(v2);
+        Matrix m0 = vp * projection * ModelView * point2matrix(v0);
+        Matrix m1 = vp * projection * ModelView * point2matrix(v1);
+        Matrix m2 = vp * projection * ModelView * point2matrix(v2);
         p0 = matrix2point(m0);
         p1 = matrix2point(m1);
         p2 = matrix2point(m2);
@@ -301,15 +326,12 @@ int main(int argc, char** argv) {
         std::cout << tab[i] << std::endl;
     }
     */
-    //model m("../african_head.obj");
-    model m("../diablo_pose.obj");
-    //model m("../trike.obj");
+    model m("../african_head.obj");
+    //model m("../diablo_pose.obj");
+    //model m("../ct_urban.obj");
     width_TEXTURE = m.imgText.get_width();
     height_TEXTURE = m.imgText.get_height();
 
-    auto start = std::chrono::system_clock::now();
-    std::time_t startt = std::chrono::system_clock::to_time_t(start);
-    std::cout << std::ctime(&startt) << std::endl;
 
     //Zbuffer
     float *zbuffer = new float[WIDTH*HEIGHT];
@@ -320,9 +342,6 @@ int main(int argc, char** argv) {
     TGAImage image(HEIGHT,WIDTH, TGAImage::RGB);
     drawTriangle(m,image, white, zbuffer);
 
-    auto step = std::chrono::system_clock::now();
-    std::time_t step2 = std::chrono::system_clock::to_time_t(step);
-    std::cout << "FIN : " << std::ctime(&step2) << std::endl;
 
     image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
     image.write_tga_file("../output.tga");

@@ -16,6 +16,9 @@ public :
     float getX();
     float getY();
     float getZ();
+    Vector vectorMinus(Vector v2);
+    Vector normalize();
+    Vector cross(Vector v2);
     //Matrix vector2matrix();
 };
 
